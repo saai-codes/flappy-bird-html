@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Funny Flappy Bird</title>
+
+<style>
+body {
+    margin: 0;
+    background: linear-gradient(#70c5ce, #ffffff);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: Arial, sans-serif;
+}
+
+/* ===== MENU ===== */
+#menu {
+    position: absolute;
+    text-align: center;
+}
+
+#menu h1 {
+    font-size: 42px;
+    margin-bottom: 20px;
+}
+
+#menu button {
+    display: block;
+    width: 240px;
+    padding: 15px;
+    margin: 12px auto;
+    font-size: 18px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    background: #ffd700;
+}
+
+#menu button:hover {
+    background: #ffcc00;
+}
+
+/* ===== CANVAS ===== */
+canvas {
+    display: none;
+    background: #70c5ce;
+    border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+</style>
+</head>
+
+<body>
+
+<!-- MENU -->
+<div id="menu">
+    <h1>🐦 Flappy Bird</h1>
+    <button onclick="startGame('hacker')">😈 Hacker Mode</button>
+    <button onclick="startGame('normal')">🎯 Normal Mode</button>
+    <button onclick="startGame('noob')">🤡 Noob Mode</button>
+</div>
+
+<!-- GAME -->
+<canvas id="game" width="400" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+/* ===== SOUND ===== */
+const dieSound = new Audio("die.mp3");
+
+/* ===== GAME STATE ===== */
+let mode = "";
+let frame = 0;
+let score = 0;
+let gameOver = false;
+
+/* ===== BIRD ===== */
+let bird = {
+    x: 80,
+    y: 300,
+    radius: 15,
+    velocity: 0,
+    gravity: 0.5,
+    jump: -8
+};
+
+/* ===== PIPES ===== */
+let pipes = [];
+let pipeWidth = 60;
+let gap = 150;
+
+/* ===== START GAME ===== */
+function startGame(selectedMode) {
+    mode = selectedMode;
+    document.getElementById("menu").style.display = "none";
+    canvas.style.display = "block";
+    resetGame();
+
+    if (mode === "hacker") {
+        bird.gravity = 0;
+    }
+
+    if (mode === "noob") {
+        bird.gravity = 1.4;
+        bird.jump = -6;
+        gap = 90;
+    }
+}
+
+/* ===== CONTROLS ===== */
+document.addEventListener("click", jump);
+document.addEventListener("keydown", e => {
+    if (e.code === "Space") jump();
+});
+
+function jump() {
+    if (!gameOver && mode !== "hacker") {
+        bird.velocity = bird.jump;
+    }
+    if (gameOver) resetGame();
+}
+
+/* ===== MAIN LOOP ===== */
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    /* BIRD */
+    ctx.beginPath();
+    ctx.arc(bird.x, bird.y, bird.radius, 0, Math.PI * 2);
+    ctx.fillStyle = "#FFD700";
+    ctx.fill();
+    ctx.closePath();
+
+    if (mode === "hacker") {
+        bird.y = canvas.height / 2 + Math.sin(frame * 0.05) * 60;
+        score++;
+    } else {
+        bird.velocity += bird.gravity;
+        bird.y += bird.velocity;
+    }
+
+    /* PIPES */
+    if (frame % 90 === 0) {
+        let top = Math.random() * 250 + 40;
+        pipes.push({
+            x: canvas.width,
+            top: top,
+            bottom: canvas.height - top - gap,
+            passed: false
+        });
+    }
+
+    pipes.forEach(pipe => {
+        pipe.x -= 2;
+
+        ctx.fillStyle = "#2ecc71";
+        ctx.fillRect(pipe.x, 0, pipeWidth, pipe.top);
+        ctx.fillRect(pipe.x, canvas.height - pipe.bottom, pipeWidth, pipe.bottom);
+
+        if (mode !== "hacker") {
+            if (
+                bird.x + bird.radius > pipe.x &&
+                bird.x - bird.radius < pipe.x + pipeWidth &&
+                (bird.y - bird.radius < pipe.top ||
+                 bird.y + bird.radius > canvas.height - pipe.bottom)
+            ) {
+                endGame();
+            }
+        }
+
+        if (!pipe.passed && pipe.x + pipeWidth < bird.x) {
+            score++;
+            pipe.passed = true;
+        }
+    });
+
+    pipes = pipes.filter(p => p.x + pipeWidth > 0);
+
+    /* WALL COLLISION */
+    if (mode !== "hacker") {
+        if (bird.y + bird.radius > canvas.height || bird.y - bird.radius < 0) {
+            endGame();
+        }
+    }
+
+    /* SCORE */
+    ctx.fillStyle = "#000";
+    ctx.font = "28px Arial";
+    ctx.fillText("Score: " + score, 20, 40);
+
+    if (gameOver) {
+        ctx.fillStyle = "rgba(0,0,0,0.6)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#fff";
+        ctx.font = "36px Arial";
+        ctx.fillText("Game Over", 95, 260);
+
+        ctx.font = "20px Arial";
+        ctx.fillText("Click / Space to Restart", 80, 310);
+
+        if (mode === "noob") {
+            ctx.fillText("Skill issue 🤡", 130, 350);
+        }
+    }
+
+    frame++;
+    requestAnimationFrame(draw);
+}
+
+/* ===== GAME OVER ===== */
+function endGame() {
+    if (!gameOver) {
+        gameOver = true;
+        dieSound.play(); // FAHHH 😵
+    }
+}
+
+/* ===== RESET ===== */
+function resetGame() {
+    bird.y = 300;
+    bird.velocity = 0;
+    pipes = [];
+    score = 0;
+    frame = 0;
+    gameOver = false;
+}
+
+/* START LOOP */
+draw();
+</script>
+
+</body>
+</html>
